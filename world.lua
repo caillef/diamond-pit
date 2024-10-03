@@ -9,144 +9,17 @@ Config = {
     },
 }
 
+local ENABLE_REBIRTH_AND_PETS = false
+
 Modules = {
     ui_blocks = "github.com/caillef/cubzh-library/ui_blocks:09941d5",
 }
 
-local VERBOSE = false
+---------------
+-- CONSTANTS --
+---------------
 
-local texturedBlocks = {}
-local pets = {}
-local PET_NAMES = {
-    bird = "birds",
-    bunny = "bunnies",
-    chicken = "chickens",
-    ram = "rams",
-    rhino = "rhinos",
-    reptile = "reptiles",
-}
-
-local eggs = {}
-local selectedEgg
-local openText
-function lookAtEgg(id)
-    if not openText then
-        local text = Text()
-        text.Text = "Click to Open"
-        text:SetParent(World)
-        text.FontSize = 1.5
-        text.Type = TextType.World
-        text.IsUnlit = true
-        text.Color = Color.Black
-        text.Anchor = { 0.5, 0.5 }
-        openText = text
-    end
-    if selectedEgg == id then return end
-    if not id then
-        if selectedEgg then
-            selectedEgg.Position.Y = 0
-            selectedEgg = nil
-            openText.IsHidden = true
-        end
-        return
-    end
-    openText.IsHidden = false
-    if selectedEgg then
-        selectedEgg.Position.Y = 0
-    end
-    selectedEgg = eggs[id]
-    selectedEgg.Position.Y = 4
-    openText.Position = selectedEgg.Position +
-        Number3(0, selectedEgg.Height * selectedEgg.Scale.Y * 0.5, -selectedEgg.Depth * selectedEgg.Scale.Z * 0.8)
-end
-
-local playersStats = {}
-local resourcesById = {}
-local resourcesByKey = {}
-local resources = {
-    {
-        id = 1,
-        key = "stone",
-        name = "Stone",
-        type = "block",
-        block = { color = Color(185, 178, 175) },
-    },
-    {
-        id = 2,
-        key = "coal",
-        name = "Coal",
-        type = "block",
-        block = { color = Color(86, 84, 87) },
-    },
-    {
-        id = 3,
-        key = "copper",
-        name = "Copper",
-        type = "block",
-        block = { color = Color(216, 113, 80) },
-    },
-    {
-        id = 4,
-        key = "deepstone",
-        name = "DeepStone",
-        type = "block",
-        block = { color = Color(97, 89, 87) },
-    },
-    {
-        id = 5,
-        key = "iron",
-        name = "Iron",
-        type = "block",
-        block = { color = Color(196, 203, 211) },
-    },
-    {
-        id = 6,
-        key = "gold",
-        name = "Gold",
-        type = "block",
-        block = { color = Color(253, 167, 28) },
-    },
-    {
-        id = 7,
-        key = "diamond",
-        name = "Diamond",
-        type = "block",
-        block = { color = Color(97, 203, 219) },
-    },
-    {
-        id = 8,
-        key = "starknet",
-        name = "Starknet",
-        type = "block",
-        block = { color = Color.Blue },
-    },
-}
-
-for _, v in ipairs(resources) do
-    resourcesByKey[v.key] = v
-    resourcesById[v.id] = v
-end
-
-local inventoryIsFull = false
-local inventoryTotalQty = 0
-local sfx = require("sfx")
 local PIT_REGENERATION_TEXT = "Pit regenerate in %02d:%02d"
-local timerPitRegeneration
-
-tickSinceSync = 0
-otherPlayers = {}
-
-worldInfo = {
-    rpc_url = "https://api.cartridge.gg/x/diamond-pit/katana",
-    torii_url = "https://api.cartridge.gg/x/diamond-pit/torii",
-    world = "0x6d5313d73973bb9bbd5c76f5a4d8f5f5f3f244c95596a01391de6a63f77f4b2",
-    actions = "0x01e3d5078d20dbcd0457d93a9a201e1ba9b58e09a68a4d48b2b3a9894942e1ac",
-    playerAddress = "0x657e5f424dc6dee0c5a305361ea21e93781fea133d83efa410b771b7f92b",
-    playerSigningKey = "0xcd93de85d43988b9492bfaaff930c129fc3edbc513bb0c2b81577291848007",
-}
-
-maxSlots = 5
-pickaxeStrength = 1
 
 local PICKAXE_STRENGTHS = {
     [0] = 1,
@@ -233,293 +106,276 @@ local NUGGETS_COLOR = {
 
 local BLOCKS_MAX_HP = { 4, 10, 25, 10, 40, 80, 125, 127 }
 
-blocksModule = {
-    chips = {}
+local PRICE_PER_BLOCK = {
+    1,   -- Stone (index 1)
+    4,   -- Coal (index 2)
+    7,   -- Copper (index 3)
+    20,  -- Iron (index 4)
+    2,   -- DeepStone (index 5)
+    60,  -- Gold (index 6)
+    100, -- Diamond (index 7)
 }
 
-blocksModule.addChips = function(self, block, color)
-    if self.chips[block.Coords.Z] and
-        self.chips[block.Coords.Z][block.Coords.Y] and
-        self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] then
-        return
-    end
-    local blockType
-    for k, v in pairs(BLOCK_COLORS) do
-        if v == color then
-            blockType = k
-            break
-        end
-    end
+local resourcesById = {}
+local resourcesByKey = {}
+local resources = {
+    {
+        id = 1,
+        key = "stone",
+        name = "Stone",
+        type = "block",
+        block = { color = Color(185, 178, 175) },
+    },
+    {
+        id = 2,
+        key = "coal",
+        name = "Coal",
+        type = "block",
+        block = { color = Color(86, 84, 87) },
+    },
+    {
+        id = 3,
+        key = "copper",
+        name = "Copper",
+        type = "block",
+        block = { color = Color(216, 113, 80) },
+    },
+    {
+        id = 4,
+        key = "deepstone",
+        name = "DeepStone",
+        type = "block",
+        block = { color = Color(97, 89, 87) },
+    },
+    {
+        id = 5,
+        key = "iron",
+        name = "Iron",
+        type = "block",
+        block = { color = Color(196, 203, 211) },
+    },
+    {
+        id = 6,
+        key = "gold",
+        name = "Gold",
+        type = "block",
+        block = { color = Color(253, 167, 28) },
+    },
+    {
+        id = 7,
+        key = "diamond",
+        name = "Diamond",
+        type = "block",
+        block = { color = Color(97, 203, 219) },
+    },
+    {
+        id = 8,
+        key = "starknet",
+        name = "Starknet",
+        type = "block",
+        block = { color = Color.Blue },
+    },
+}
 
-    if not NUGGETS_COLOR[blockType] then return end
-
-    if not self.cachedChips then
-        self.cachedChips = {}
-    end
-
-    if not self.cachedChips[blockType] then
-        local chips = MutableShape()
-
-        local function randomFacePosition()
-            return math.random(-4, 4), math.random(-4, 4)
-        end
-
-        -- Front face (3 chips)
-        for i = 1, 10 do
-            local x, y = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], x, y, -5)
-        end
-
-        -- Back face (3 chips)
-        for i = 1, 10 do
-            local x, y = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], x, y, 5)
-        end
-
-        -- Left face (3 chips)
-        for i = 1, 10 do
-            local y, z = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], -5, y, z)
-        end
-
-        -- Right face (3 chips)
-        for i = 1, 10 do
-            local y, z = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], 5, y, z)
-        end
-
-        -- Top face (3 chips)
-        for i = 1, 10 do
-            local x, z = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], x, 5, z)
-        end
-
-        -- Bottom face (3 chips)
-        for i = 1, 10 do
-            local x, z = randomFacePosition()
-            chips:AddBlock(NUGGETS_COLOR[blockType], x, -5, z)
-        end
-
-        self.cachedChips[blockType] = chips
-    end
-
-    local chips = Shape(self.cachedChips[blockType])
-    chips:SetParent(World)
-    chips.Shadow = true
-    chips.Position = block.Position + Number3(10, 10, 10)
-    chips.Physics = PhysicsMode.Disabled
-    chips.Pivot = Number3(0.5, 0.5, 0.5)
-    chips.Scale = 1.75
-
-    self.chips[block.Coords.Z] = self.chips[block.Coords.Z] or {}
-    self.chips[block.Coords.Z][block.Coords.Y] = self.chips[block.Coords.Z][block.Coords.Y] or {}
-    self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] = chips
+for _, v in ipairs(resources) do
+    resourcesByKey[v.key] = v
+    resourcesById[v.id] = v
 end
 
-blocksModule.setBlockHP = function(self, block, hp, maxHP, blockType)
-    if not block then return end
-    if not self.chips[block.Coords.Z] or not self.chips[block.Coords.Z][block.Coords.Y] or not self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] then
-        if hp < maxHP then
-            self:addChips(block, BLOCK_COLORS[blockType])
-        else
-            return
-        end
-    end
+-------------
+-- MODULES --
+-------------
 
-    local chips = self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X]
-    if hp <= 0 then
-        chips:RemoveFromParent()
-        self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] = nil
-        return
-    end
+local sfx = require("sfx")
 
-    local percentage = 1 - (hp / maxHP)
-    chips.Scale = 1.75 + percentage * 0.3
-end
+----------------------
+-- GLOBAL VARIABLES --
+----------------------
 
-blocksModule.start = function(self)
-    self.blockShape = MutableShape()
-    self.blockShape.Name = "Blocks"
-    self.blockShape.Physics = PhysicsMode.StaticPerBlock
-    self.blockShape:SetParent(World)
-    self.CollisionGroups = Map.CollisionGroups
-    self.CollidesWithGroups = Map.CollidesWithGroups
-    self.blockShape.Position = { 200, 0, 200 }
-    self.blockShape.Scale = 20
-    self.blockShape.Friction = { top = 0.2, other = 0 }
-    self.blockShape.Pivot = { 0, 1, 0 }
-    self.blockShape.Shadow = true
-    -- self.blockShape.PrivateDrawMode = 8
-    for z = 0, 49 do
-        for j = 0, 9 do
-            for i = 0, 9 do
-                self.blockShape:AddBlock(BLOCK_COLORS[1], i, -z, j)
-            end
-        end
-    end
-end
+local server_players_hit_power = {}
+local server_next_generate = 0
 
-createNewPlayer = function(key, position)
-    local player = {}
-    local model = require("avatar"):get("caillef")
-    model:SetParent(World)
-    model.Scale = 0.5
-    model.Rotation.Y = math.random() * 2 * math.pi
-    model.Position = position
-    player.model = model
+local serverEvent = {
+    hit_block = function(x, y, z)
+        local e = Event()
+        e.action = "hit_block"
+        e.position = Number3(x, y, z)
+        e:SendTo(Server)
+    end,
+    sell_all = function()
+        local e = Event()
+        e.action = "sell_all"
+        e:SendTo(Server)
+    end,
+    upgrade_backpack = function()
+        local e = Event()
+        e.action = "upgrade_backpack"
+        e:SendTo(Server)
+    end,
+    upgrade_pickaxe = function()
+        local e = Event()
+        e.action = "upgrade_pickaxe"
+        e:SendTo(Server)
+    end,
+    -- rebirth = function()
+    --     local e = Event()
+    --     e.action = "rebirth"
+    --     e:SendTo(Server)
+    -- end,
+    -- open_egg = function(egg_type)
+    --     local e = Event()
+    --     e.action = "open_egg"
+    --     e.egg_type = egg_type
+    --     e:SendTo(Server)
+    -- end,
+    -- free_daily_credits = function()
+    --     local e = Event()
+    --     e.action = "free_daily_credits"
+    --     e:SendTo(Server)
+    -- end
+}
 
-    local text = Text()
-    text.Text = "cool name (0)"
-    text:SetParent(model)
-    text.FontSize = 3
-    text.Type = TextType.World
-    text.IsUnlit = true
-    text.Color = Color.Black
-    text.Anchor = { 0.5, 0 }
-    text.LocalPosition = Number3(0, 30, 0)
-    player.text = text
+local texturedBlocks = {}
 
-    LocalEvent:Listen(LocalEvent.Name.Tick, function(dt)
-        if not player.targetPosition then
-            return
-        end
-        text.Forward = Player.Forward
+local playersStats = {}
+local prevPlayerStats
 
-        if player.checkRefresh then
-            player.checkRefresh:Cancel()
-            player.checkRefresh = nil
-        end
-        if (player.model.Position - player.targetPosition).SquaredLength <= 3 then
-            player.checkRefresh = Timer(61, function()
-                player.model:RemoveFromParent()
-                otherPlayers[key] = nil
-            end)
-            player.targetPosition = nil
-            return
-        end
-        local dir = player.targetPosition - player.model.Position
-        dir:Normalize()
-        player.model.Position = player.model.Position + dir * dt * 30
+local maxSlots = 5
+local pickaxeStrength = 1
+local inventoryIsFull = false
+local inventoryTotalQty = 0
 
-        player.model.Forward = dir
-        player.model.Rotation.X = 0
-        player.model.Rotation.Z = 0
-    end)
-    otherPlayers[key] = player
-    return player
-end
+local timerPitRegeneration
 
-local petStatus = {}
-local petNameToDisplay
-local nbPetsToDisplay
-function updatePetNumber(petName, nbPets)
-    if not petStatus[petName] then
-        petStatus[petName] = nbPets
+local leaderboardTextBlocks, leaderboardTextHits, leaderboardTextCoins
+local leaderboardTextBlocksScore, leaderboardTextHitsScore, leaderboardTextCoinsScore
+local leaderboardEntries = {}
 
-        -- if prevPetsInventory.value == 0 then
-        --     showInfo(string.format("New Pet Discovered: %s)", petName))
-        -- else
-        --     showInfo(string.format("New %s Added! (total: %d %s)", petName, v.value, k,
-        --         (v.value > 1 and "s" or "")))
-        -- end
+local PET_NAMES = {
+    bird = "birds",
+    bunny = "bunnies",
+    chicken = "chickens",
+    ram = "rams",
+    rhino = "rhinos",
+    reptile = "reptiles",
+}
 
-        -- discovery
-        pets[petName].IsHidden = false
-        require("hierarchyactions"):applyToDescendants(pets[petName], { includeRoot = true }, function(o)
-            o.Physics = PhysicsMode.Static
-        end)
-        pets[petName].shadow:RemoveFromParent()
-        emitterNewPet = require("particles"):newEmitter({
-            velocity = function()
-                local v = Number3(math.random(-20, 20), math.random(60, 90), math.random(-20, 20))
-                return v
-            end,
-            physics = true,
-            life = 5.0,
-            scale = function()
-                return 0.7 + math.random() * 2
-            end,
-            color = function()
-                return Color.White
-            end,
-        })
-        emitterNewPet.Position = pets[petName].Position + Number3(0, 10, 0)
-        emitterNewPet.CollidesWithGroups = {}
-        Timer(2, function()
-            sfx("fire_1", { Spatialized = false, Volume = 0.6 })
-            emitterNewPet:spawn(30)
-        end)
-    end
+-- local pets = {}
+-- local eggs = {}
+-- local selectedEgg
+-- local openText
+-- function lookAtEgg(id)
+--     if not openText then
+--         local text = Text()
+--         text.Text = "Click to Open"
+--         text:SetParent(World)
+--         text.FontSize = 1.5
+--         text.Type = TextType.World
+--         text.IsUnlit = true
+--         text.Color = Color.Black
+--         text.Anchor = { 0.5, 0.5 }
+--         openText = text
+--     end
+--     if selectedEgg == id then return end
+--     if not id then
+--         if selectedEgg then
+--             selectedEgg.Position.Y = 0
+--             selectedEgg = nil
+--             openText.IsHidden = true
+--         end
+--         return
+--     end
+--     openText.IsHidden = false
+--     if selectedEgg then
+--         selectedEgg.Position.Y = 0
+--     end
+--     selectedEgg = eggs[id]
+--     selectedEgg.Position.Y = 4
+--     openText.Position = selectedEgg.Position +
+--         Number3(0, selectedEgg.Height * selectedEgg.Scale.Y * 0.5, -selectedEgg.Depth * selectedEgg.Scale.Z * 0.8)
+-- end
 
-    local nbPetsUnlocked = 0
-    for key, nbPet in pairs(petStatus) do
-        print(key, nbPet)
-        if nbPet and nbPet > 0 then
-            nbPetsUnlocked = nbPetsUnlocked + 1
-        end
-    end
-    animalText.Text = string.format("%d/6 pets", nbPetsUnlocked)
-end
+-- local petStatus = {}
+-- local petNameToDisplay
+-- local nbPetsToDisplay
+-- function updatePetNumber(petName, nbPets)
+--     if not petStatus[petName] then
+--         petStatus[petName] = nbPets
 
-displayNewPetAcquired = function()
-    if not petNameToDisplay then return end
-    updatePetNumber(petNameToDisplay, nbPetsToDisplay)
-    petNameToDisplay = nil
-    nbPetsToDisplay = nil
-end
+--         -- if prevPetsInventory.value == 0 then
+--         --     showInfo(string.format("New Pet Discovered: %s)", petName))
+--         -- else
+--         --     showInfo(string.format("New %s Added! (total: %d %s)", petName, v.value, k,
+--         --         (v.value > 1 and "s" or "")))
+--         -- end
 
-local prevPetsInventory
-updatePetInventory = function(key, petsInventory)
-    if petsInventory.owner.value ~= dojo.burnerAccount.Address then
-        return
-    end
-    for k, v in pairs(petsInventory) do
-        if v.type_name == "u32" and v.value > (prevPetsInventory[k] and prevPetsInventory[k].value or 0) then
-            local petType = k
-            local nbPets = v.value
-            for name, dojoKey in pairs(PET_NAMES) do
-                if petType == dojoKey then
-                    if not prevPetsInventory then
-                        updatePetNumber(name, nbPets)
-                    end
-                    petNameToDisplay = name
-                    nbPetsToDisplay = nbPets
-                end
-            end
-        end
-    end
-    prevPetsInventory = petsInventory
-end
+--         -- discovery
+--         pets[petName].IsHidden = false
+--         require("hierarchyactions"):applyToDescendants(pets[petName], { includeRoot = true }, function(o)
+--             o.Physics = PhysicsMode.Static
+--         end)
+--         pets[petName].shadow:RemoveFromParent()
+--         emitterNewPet = require("particles"):newEmitter({
+--             velocity = function()
+--                 local v = Number3(math.random(-20, 20), math.random(60, 90), math.random(-20, 20))
+--                 return v
+--             end,
+--             physics = true,
+--             life = 5.0,
+--             scale = function()
+--                 return 0.7 + math.random() * 2
+--             end,
+--             color = function()
+--                 return Color.White
+--             end,
+--         })
+--         emitterNewPet.Position = pets[petName].Position + Number3(0, 10, 0)
+--         emitterNewPet.CollidesWithGroups = {}
+--         Timer(2, function()
+--             sfx("fire_1", { Spatialized = false, Volume = 0.6 })
+--             emitterNewPet:spawn(30)
+--         end)
+--     end
 
-updatePlayerPosition = function(key, position)
-    if position.player.value == dojo.burnerAccount.Address then
-        return
-    end
+--     local nbPetsUnlocked = 0
+--     for key, nbPet in pairs(petStatus) do
+--         print(key, nbPet)
+--         if nbPet and nbPet > 0 then
+--             nbPetsUnlocked = nbPetsUnlocked + 1
+--         end
+--     end
+--     animalText.Text = string.format("%d/6 pets", nbPetsUnlocked)
+-- end
 
-    local worldPos = Number3(
-        math.floor(position.x.value - 1000000),
-        math.floor(position.y.value - 1000000),
-        math.floor(position.z.value - 1000000)
-    )
+-- displayNewPetAcquired = function()
+--     if not petNameToDisplay then return end
+--     updatePetNumber(petNameToDisplay, nbPetsToDisplay)
+--     petNameToDisplay = nil
+--     nbPetsToDisplay = nil
+-- end
 
-    if position.time.value + 60 < Time.Unix() then
-        return
-    end
-
-    local player = otherPlayers[key] or createNewPlayer(key, worldPos)
-    if not player then
-        return
-    end
-
-    local playerStat = playersStats[position.player.value]
-    if playerStat then
-        player.text.Text = string.format("%s (%d)",
-            playerStat.name.value ~= "0x0" and hex_to_string(playerStat.name.value) or "guest",
-            playerStat.rebirth.value)
-    end
-
-    player.targetPosition = worldPos
-end
+-- local prevPetsInventory
+-- updatePetInventory = function(key, petsInventory)
+--     if petsInventory.owner.value ~= dojo.burnerAccount.Address then
+--         return
+--     end
+--     for k, v in pairs(petsInventory) do
+--         if v.type_name == "u32" and v.value > (prevPetsInventory[k] and prevPetsInventory[k].value or 0) then
+--             local petType = k
+--             local nbPets = v.value
+--             for name, dojoKey in pairs(PET_NAMES) do
+--                 if petType == dojoKey then
+--                     if not prevPetsInventory then
+--                         updatePetNumber(name, nbPets)
+--                     end
+--                     petNameToDisplay = name
+--                     nbPetsToDisplay = nbPets
+--                 end
+--             end
+--         end
+--     end
+--     prevPetsInventory = petsInventory
+-- end
 
 local currentInfo
 showInfo = function(str)
@@ -543,45 +399,45 @@ showInfo = function(str)
     end)
 end
 
-local prevPlayerStats
-updatePlayerStats = function(key, stats)
-    playersStats[stats.player.value] = stats
-    updateIndividualLeaderboard(playersStats, leaderboardTextRebirths, leaderboardTextRebirthsScore, "rebirth")
-
-    if stats.player.value ~= dojo.burnerAccount.Address then
+updatePlayerStats = function(stats)
+    if not stats then
+        local store = KeyValueStore("players")
+        store:Get(Player.UserID, function(success, results)
+            local entry = results[Player.UserID] or {}
+            updatePlayerStats(entry)
+        end)
         return
     end
-    if prevPlayerStats and prevPlayerStats.rebirth.value < stats.rebirth.value and Player.pickaxe then
-        -- rebirth
-        local rebirthLevel = stats.rebirth.value
-        sfx("fire_1", { Spatialized = false, Volume = 0.6 })
-        sfx("doorbell_2", { Spatialized = false, Volume = 0.6 })
-        maxSlots = BACKPACK_MAX_SLOTS[0]
-        local nextLevel = 1
-        floatingBackpack.Palette[1].Color = LEVEL_COLOR[nextLevel]
-        backpackNextText.Text = string.format("%d 💰", BACKPACK_UPGRADE_PRICES[nextLevel])
-        floatingBackpack.IsHidden = false
-        backpackNextText.IsHidden = false
+    -- playersStats[stats.player.value] = stats
+    -- updateIndividualLeaderboard(playersStats, leaderboardTextRebirths, leaderboardTextRebirthsScore, "rebirth")
 
-        pickaxeStrength = PICKAXE_STRENGTHS[0]
-        Player.pickaxe.Palette[8].Color = LEVEL_COLOR[0]
-        local nextLevel = 1
-        floatingPickaxe.Palette[8].Color = LEVEL_COLOR[nextLevel]
-        pickaxeNextText.Text = string.format("%d 💰", PICKAXE_UPGRADE_PRICES[nextLevel])
-        floatingPickaxe.IsHidden = false
-        pickaxeNextText.IsHidden = false
-        prevPlayerStats = stats
+    -- if prevPlayerStats and prevPlayerStats.rebirth.value < stats.rebirth.value and Player.pickaxe then
+    --     -- rebirth
+    --     local rebirthLevel = stats.rebirth.value
+    --     sfx("fire_1", { Spatialized = false, Volume = 0.6 })
+    --     sfx("doorbell_2", { Spatialized = false, Volume = 0.6 })
+    --     maxSlots = BACKPACK_MAX_SLOTS[0]
+    --     local nextLevel = 1
+    --     floatingBackpack.Palette[1].Color = LEVEL_COLOR[nextLevel]
+    --     backpackNextText.Text = string.format("%d 💰", BACKPACK_UPGRADE_PRICES[nextLevel])
+    --     floatingBackpack.IsHidden = false
+    --     backpackNextText.IsHidden = false
 
-        showInfo(string.format("New Rebirth (level %d)", rebirthLevel))
-        return
-    end
-    prevPlayerStats = stats
+    --     pickaxeStrength = PICKAXE_STRENGTHS[0]
+    --     Player.pickaxe.Palette[8].Color = LEVEL_COLOR[0]
+    --     local nextLevel = 1
+    --     floatingPickaxe.Palette[8].Color = LEVEL_COLOR[nextLevel]
+    --     pickaxeNextText.Text = string.format("%d 💰", PICKAXE_UPGRADE_PRICES[nextLevel])
+    --     floatingPickaxe.IsHidden = false
+    --     pickaxeNextText.IsHidden = false
+    --     prevPlayerStats = stats
 
-    if textInputUsername then
-        textInputUsername.Text = hex_to_string(stats.name.value)
-    end
+    --     showInfo(string.format("New Rebirth (level %d)", rebirthLevel))
+    --     return
+    -- end
+    -- prevPlayerStats = stats
 
-    local backpackLevel = stats.backpack_level.value
+    local backpackLevel = stats.backpack_level or 0
     if BACKPACK_MAX_SLOTS[backpackLevel] > maxSlots then
         maxSlots = BACKPACK_MAX_SLOTS[backpackLevel]
         sfx("victory_1", { Spatialized = false, Volume = 0.6 })
@@ -595,7 +451,7 @@ updatePlayerStats = function(key, stats)
         end
     end
 
-    local pickaxeLevel = stats.pickaxe_level.value
+    local pickaxeLevel = stats.pickaxe_level or 0
     if Player.pickaxe and PICKAXE_STRENGTHS[pickaxeLevel] > pickaxeStrength then
         pickaxeStrength = PICKAXE_STRENGTHS[pickaxeLevel]
         sfx("metal_clanging_1", { Spatialized = false, Volume = 0.6 })
@@ -627,7 +483,7 @@ initSellingArea = function()
             showInfo("Nothing to sell, mine blocks in the pit")
             return
         end
-        dojo.actions.sell_all()
+        serverEvent.sell_all()
         sfx("coin_1", { Spatialized = false, Volume = 0.6 })
     end
 
@@ -651,88 +507,19 @@ initSellingArea = function()
         text.Forward = Player.Forward
     end)
 
-    local text = Text()
-    animalText = text
-    text.Text = "0/6 pets"
-    text:SetParent(World)
-    text.FontSize = 7
-    text.Type = TextType.World
-    text.IsUnlit = true
-    text.Color = Color.Black
-    text.Anchor = { 0.5, 0 }
-    text.Position = Number3(170, 30, 470)
-    LocalEvent:Listen(LocalEvent.Name.Tick, function()
-        text.Forward = Player.Forward
-    end)
-end
-
-initMenu = function(callbackOnStart)
-    local ui = require("uikit")
-    local bg = ui:createFrame(Color(0, 0, 0, 0.8))
-    bg.parentDidResize = function()
-        bg.Width = 400
-        bg.Height = Screen.Height * 0.2
-        bg.pos = { Screen.Width * 0.5 - bg.Width * 0.5, Screen.Height * 0.5 - bg.Height * 0.5 }
-    end
-    bg:parentDidResize()
-
-    local bgBlock = ui:createFrame(Color(0, 0, 0, 0))
-    bgBlock.parentDidResize = function()
-        bgBlock.Width = bg.Width - 16
-        bgBlock.Height = bg.Height - 16
-        bgBlock.pos = { 8, 8 }
-    end
-    bgBlock:setParent(bg)
-    bgBlock:parentDidResize()
-
-    textInputUsername = ui:createTextInput("")
-    textInputUsername.onFocus = function()
-        textInputUsername.Text = ""
-    end
-    textInputUsername.onSubmit = function()
-        local name = textInputUsername.Text
-        if #name > 11 then
-            name = string.sub(name, 1, 11)
-        end
-        if #name > 0 then
-            dojo.actions.set_username(name)
-        end
-    end
-    local setUsernameBlock = ui_blocks:createLineContainer({
-        dir = "horizontal",
-        nodes = {
-            ui:createText("Username: ", Color.White),
-            { type = "gap" },
-            textInputUsername,
-        }
-    })
-
-    local playBtn = ui:createButton("Play")
-    playBtn.onRelease = function()
-        local name = textInputUsername.Text
-        if #name > 11 then
-            name = string.sub(name, 1, 11)
-        end
-        if #name < 0 then return end
-        dojo.actions.set_username(name)
-        bg:remove()
-        Pointer:Hide()
-        textInputUsername = nil
-        callbackOnStart()
-    end
-
-    local titleScreen = ui_blocks:createBlock({
-        triptych = {
-            dir = "vertical",
-            color = Color(0, 0, 0, 0), -- background color
-            top = ui:createText("Diamond Pit", Color.White, "big"),
-            center = setUsernameBlock,
-            bottom = playBtn,
-        },
-    })
-    titleScreen:setParent(bgBlock)
-
-    Pointer:Show()
+    -- local text = Text()
+    -- animalText = text
+    -- text.Text = "0/6 pets"
+    -- text:SetParent(World)
+    -- text.FontSize = 7
+    -- text.Type = TextType.World
+    -- text.IsUnlit = true
+    -- text.Color = Color.Black
+    -- text.Anchor = { 0.5, 0 }
+    -- text.Position = Number3(170, 30, 470)
+    -- LocalEvent:Listen(LocalEvent.Name.Tick, function()
+    --     text.Forward = Player.Forward
+    -- end)
 end
 
 initUpgradeAreas = function()
@@ -746,7 +533,7 @@ initUpgradeAreas = function()
         area.Position = position
         area.OnCollisionBegin = function(_, other)
             if other == Player then
-                dojo.actions[upgradeAction](function(error)
+                serverEvent[upgradeAction](function(error)
                     if error == "TransactionExecutionError" then
                         showInfo("Not Enough Coins")
                     end
@@ -790,117 +577,116 @@ initUpgradeAreas = function()
         Items.caillef.backpackmine, BACKPACK_UPGRADE_PRICES)
 
     -- rebirth area
-    local rebirthArea = MutableShape()
-    rebirthArea:AddBlock(Color(127, 127, 127, 0.5), 0, 0, 0)
-    rebirthArea:SetParent(World)
-    rebirthArea.Scale = { 30, 2, 30 }
-    rebirthArea.Pivot = { 0.5, 0, 0.5 }
-    rebirthArea.Physics = PhysicsMode.Trigger
-    rebirthArea.Position = { 350, 0, 450 }
-    rebirthArea.OnCollisionBegin = function(_, other)
-        if other == Player then
-            dojo.actions.rebirth(1, function(error)
-                if error == "TransactionExecutionError" then
-                    showInfo("Not Enough Coins")
-                end
-            end)
+    if ENABLE_REBIRTH_AND_PETS then
+        local rebirthArea = MutableShape()
+        rebirthArea:AddBlock(Color(127, 127, 127, 0.5), 0, 0, 0)
+        rebirthArea:SetParent(World)
+        rebirthArea.Scale = { 30, 2, 30 }
+        rebirthArea.Pivot = { 0.5, 0, 0.5 }
+        rebirthArea.Physics = PhysicsMode.Trigger
+        rebirthArea.Position = { 350, 0, 450 }
+        rebirthArea.OnCollisionBegin = function(_, other)
+            if other == Player then
+                serverEvent.rebirth(1, function(error)
+                    if error == "TransactionExecutionError" then
+                        showInfo("Not Enough Coins")
+                    end
+                end)
+            end
         end
-    end
 
-    local rebirthText = Text()
-    rebirthText.Text = "Rebirth (3000 💰)"
-    rebirthText:SetParent(World)
-    rebirthText.FontSize = 5
-    rebirthText.Position = Number3(350, 25, 450)
-    rebirthText.Type = TextType.World
-    rebirthText.IsUnlit = true
-    rebirthText.Color = Color.Black
-    rebirthText.Anchor = { 0.5, 0 }
-    LocalEvent:Listen(LocalEvent.Name.Tick, function()
-        rebirthText.Forward = Player.Forward
-    end)
+        local rebirthText = Text()
+        rebirthText.Text = "Rebirth (3000 💰)"
+        rebirthText:SetParent(World)
+        rebirthText.FontSize = 5
+        rebirthText.Position = Number3(350, 25, 450)
+        rebirthText.Type = TextType.World
+        rebirthText.IsUnlit = true
+        rebirthText.Color = Color.Black
+        rebirthText.Anchor = { 0.5, 0 }
+        LocalEvent:Listen(LocalEvent.Name.Tick, function()
+            rebirthText.Forward = Player.Forward
+        end)
 
-    local rebirthTextHelpPosition = Number3(370, 3, 460)
-    local rebirthTextHelpRotation = Rotation(0, math.pi * 0.25, 0)
-    local rebirthTextHelp = Text()
-    rebirthTextHelp.Text =
-    "Rebirth:\nDowngrade backpack and pickaxe to level 1\n+1 rebirth credits to open eggs\n+10% coins when selling"
-    rebirthTextHelp:SetParent(World)
-    rebirthTextHelp.FontSize = 2
-    rebirthTextHelp.Position = rebirthTextHelpPosition
-    rebirthTextHelp.Rotation = rebirthTextHelpRotation
-    rebirthTextHelp.Type = TextType.World
-    rebirthTextHelp.IsUnlit = true
-    rebirthTextHelp.IsDoubleSided = true
-    rebirthTextHelp.Color = Color.Black
-    rebirthTextHelp.BackgroundColor = Color(200, 173, 127)
-    rebirthTextHelp.Anchor = { 0.5, 0 }
+        local rebirthTextHelpPosition = Number3(370, 3, 460)
+        local rebirthTextHelpRotation = Rotation(0, math.pi * 0.25, 0)
+        local rebirthTextHelp = Text()
+        rebirthTextHelp.Text =
+        "Rebirth:\nDowngrade backpack and pickaxe to level 1\n+1 rebirth credits to open eggs\n+10% coins when selling"
+        rebirthTextHelp:SetParent(World)
+        rebirthTextHelp.FontSize = 2
+        rebirthTextHelp.Position = rebirthTextHelpPosition
+        rebirthTextHelp.Rotation = rebirthTextHelpRotation
+        rebirthTextHelp.Type = TextType.World
+        rebirthTextHelp.IsUnlit = true
+        rebirthTextHelp.IsDoubleSided = true
+        rebirthTextHelp.Color = Color.Black
+        rebirthTextHelp.BackgroundColor = Color(200, 173, 127)
+        rebirthTextHelp.Anchor = { 0.5, 0 }
 
-    local leftLog = Shape(Items.voxels.log_2)
-    leftLog:SetParent(World)
-    leftLog.Position = rebirthTextHelpPosition - Number3(0, 3, 0)
-    leftLog.Rotation = rebirthTextHelpRotation
-    leftLog.Scale = { 0.6, 0.5, 0.5 }
-    leftLog.Pivot = { 0, leftLog.Height * 0.5, leftLog.Depth * 0.5 }
-    leftLog:RotateLocal(leftLog.Backward, math.pi * -0.5)
-    leftLog.Position = leftLog.Position + leftLog.Up * 25
-    leftLog:RotateWorld(Number3(0, 1, 0), math.floor(math.random() * 4) * math.pi * 0.5)
+        local leftLog = Shape(Items.voxels.log_2)
+        leftLog:SetParent(World)
+        leftLog.Position = rebirthTextHelpPosition - Number3(0, 3, 0)
+        leftLog.Rotation = rebirthTextHelpRotation
+        leftLog.Scale = { 0.6, 0.5, 0.5 }
+        leftLog.Pivot = { 0, leftLog.Height * 0.5, leftLog.Depth * 0.5 }
+        leftLog:RotateLocal(leftLog.Backward, math.pi * -0.5)
+        leftLog.Position = leftLog.Position + leftLog.Up * 25
+        leftLog:RotateWorld(Number3(0, 1, 0), math.floor(math.random() * 4) * math.pi * 0.5)
 
-    local rightLog = Shape(Items.voxels.log_2)
-    rightLog:SetParent(World)
-    rightLog.Position = rebirthTextHelpPosition - Number3(0, 3, 0)
-    rightLog.Rotation = rebirthTextHelpRotation
-    rightLog.Scale = { 0.6, 0.5, 0.5 }
-    rightLog.Pivot = { 0, rightLog.Height * 0.5, rightLog.Depth * 0.5 }
-    rightLog:RotateLocal(rightLog.Backward, math.pi * -0.5)
-    rightLog.Position = rightLog.Position + rightLog.Up * -25
-    rightLog:RotateWorld(Number3(0, 1, 0), math.floor(math.random() * 4) * math.pi * 0.5)
+        local rightLog = Shape(Items.voxels.log_2)
+        rightLog:SetParent(World)
+        rightLog.Position = rebirthTextHelpPosition - Number3(0, 3, 0)
+        rightLog.Rotation = rebirthTextHelpRotation
+        rightLog.Scale = { 0.6, 0.5, 0.5 }
+        rightLog.Pivot = { 0, rightLog.Height * 0.5, rightLog.Depth * 0.5 }
+        rightLog:RotateLocal(rightLog.Backward, math.pi * -0.5)
+        rightLog.Position = rightLog.Position + rightLog.Up * -25
+        rightLog:RotateWorld(Number3(0, 1, 0), math.floor(math.random() * 4) * math.pi * 0.5)
 
 
-    -- free daily credits area
-    local freeDailyCreditsArea = MutableShape()
-    freeDailyCreditsArea:AddBlock(Color(127, 127, 127, 0.5), 0, 0, 0)
-    freeDailyCreditsArea:SetParent(World)
-    freeDailyCreditsArea.Scale = { 30, 2, 30 }
-    freeDailyCreditsArea.Pivot = { 0.5, 0, 0.5 }
-    freeDailyCreditsArea.Physics = PhysicsMode.Trigger
-    freeDailyCreditsArea.Position = { 100, 0, 300 }
+        -- free daily credits area
+        local freeDailyCreditsArea = MutableShape()
+        freeDailyCreditsArea:AddBlock(Color(127, 127, 127, 0.5), 0, 0, 0)
+        freeDailyCreditsArea:SetParent(World)
+        freeDailyCreditsArea.Scale = { 30, 2, 30 }
+        freeDailyCreditsArea.Pivot = { 0.5, 0, 0.5 }
+        freeDailyCreditsArea.Physics = PhysicsMode.Trigger
+        freeDailyCreditsArea.Position = { 100, 0, 300 }
 
-    local freeDailyCreditsIcon = Shape(Items.caillef.coin)
-    freeDailyCreditsIcon.Palette[1].Color = Color.Red
-    freeDailyCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
-        math.floor(Color.Red.B * 0.8))
-    freeDailyCreditsIcon:SetParent(World)
-    freeDailyCreditsIcon.Scale = 1.4
-    freeDailyCreditsIcon.Position = { 100, 5, 300 }
+        local freeDailyCreditsIcon = Shape(Items.caillef.coin)
+        freeDailyCreditsIcon.Palette[1].Color = Color.Red
+        freeDailyCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
+            math.floor(Color.Red.B * 0.8))
+        freeDailyCreditsIcon:SetParent(World)
+        freeDailyCreditsIcon.Scale = 1.4
+        freeDailyCreditsIcon.Position = { 100, 5, 300 }
 
-    freeDailyCreditsArea.OnCollisionBegin = function(_, other)
-        if other == Player then
-            dojo.actions.free_daily_credits(function(error)
-                freeDailyCreditsIcon.IsHidden = true
-                if error then
-                    showInfo("You need to wait 24 hours!")
-                end
-            end)
+        freeDailyCreditsArea.OnCollisionBegin = function(_, other)
+            if other == Player then
+                serverEvent.free_daily_credits(function(error)
+                    freeDailyCreditsIcon.IsHidden = true
+                    if error then
+                        showInfo("You need to wait 24 hours!")
+                    end
+                end)
+            end
         end
-    end
 
-    local freeDailyCreditsText = Text()
-    freeDailyCreditsText.Text = "Free Daily Rebirth Credit"
-    freeDailyCreditsText:SetParent(World)
-    freeDailyCreditsText.FontSize = 5
-    freeDailyCreditsText.Position = Number3(100, 25, 300)
-    freeDailyCreditsText.Type = TextType.World
-    freeDailyCreditsText.IsUnlit = true
-    freeDailyCreditsText.Color = Color.Black
-    freeDailyCreditsText.Anchor = { 0.5, 0 }
-    LocalEvent:Listen(LocalEvent.Name.Tick, function()
-        freeDailyCreditsText.Forward = Player.Forward
-    end)
+        local freeDailyCreditsText = Text()
+        freeDailyCreditsText.Text = "Free Daily Rebirth Credit"
+        freeDailyCreditsText:SetParent(World)
+        freeDailyCreditsText.FontSize = 5
+        freeDailyCreditsText.Position = Number3(100, 25, 300)
+        freeDailyCreditsText.Type = TextType.World
+        freeDailyCreditsText.IsUnlit = true
+        freeDailyCreditsText.Color = Color.Black
+        freeDailyCreditsText.Anchor = { 0.5, 0 }
+        LocalEvent:Listen(LocalEvent.Name.Tick, function()
+            freeDailyCreditsText.Forward = Player.Forward
+        end)
+    end
 end
-
-local leaderboardTextBlocks, leaderboardTextHits, leaderboardTextCoins
-local leaderboardTextBlocksScore, leaderboardTextHitsScore, leaderboardTextCoinsScore
 
 local function createLeaderboardQuad(position, rotation, title)
     local quad = Quad()
@@ -981,7 +767,6 @@ function initLeaderboard()
         "Season Leaderboard\n- Rebirths -")
 end
 
-local leaderboardEntries = {}
 function updateIndividualLeaderboard(entries, textObject, textScoreObject, valueField)
     local list = {}
     for _, elem in pairs(entries) do
@@ -1040,32 +825,29 @@ updateLeaderboard = function(_, entry)
     updateIndividualLeaderboard(leaderboardEntries, leaderboardTextBlocks, leaderboardTextBlocksScore, "nb_blocks_broken")
 end
 
-local inventoryNode
-updateInventory = function(_, inventory)
-    if inventory.player.value ~= dojo.burnerAccount.Address then
+updateInventory = function(entry)
+    if not entry then
+        local store = KeyValueStore("players")
+        store:Get(Player.UserID, function(success, results)
+            local entry = results[Player.UserID] or {}
+            updateInventory(entry)
+        end)
         return
     end
     local slots = {}
     local totalQty = 0
-    local inventoryHexaWithoutPrefix = string.sub(inventory.data.value, 3, #inventory.data.value)
-    if #inventoryHexaWithoutPrefix % 2 ~= 0 then
-        inventoryHexaWithoutPrefix = "0" .. inventoryHexaWithoutPrefix
-    end
-    for i = 1, 8 do
-        local startIndex = #inventoryHexaWithoutPrefix - 2 * i - 1
-        if startIndex < 1 then
-            break
-        end
-        local endIndex = startIndex + 1
-        local nbInSlot = tonumber("0x" .. string.sub(inventoryHexaWithoutPrefix, startIndex, endIndex))
-        if nbInSlot > 0 then
-            table.insert(slots, { blockType = i, qty = nbInSlot })
-            totalQty = totalQty + nbInSlot
+    local inventory = entry.inventory or {}
+    for key, value in pairs(inventory) do
+        if value and value > 0 then
+            table.insert(slots, { blockType = key, qty = value })
+            totalQty = totalQty + value
         end
     end
 
-    coinText.Text = string.format("%d", inventory.coins.value)
-    creditsText.Text = string.format("%d", inventory.rebirth_credits.value)
+    local coins = entry.coins or 0
+    local rebirth_credits = entry.rebirth_credits or 0
+    coinText.Text = string.format("%d", coins)
+    creditsText.Text = string.format("%d", rebirth_credits)
 
     inventoryTotalQty = totalQty
     inventoryIsFull = totalQty == (maxSlots or 5)
@@ -1101,208 +883,232 @@ Client.OnWorldObjectLoad = function(obj)
             end)
         end
     end
-    if obj.Name == "egg1" then
-        eggs[1] = obj
-        obj.Physics = PhysicsMode.Static
-        obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
 
-        local eggText = Text()
-        eggText.Text = "1"
-        eggText:SetParent(World)
-        eggText.FontSize = 3
-        eggText.Position = obj.Position + Number3(0, 20, 0)
-        eggText.Rotation.Y = math.pi * 0.25
-        eggText.Type = TextType.World
-        eggText.IsUnlit = true
-        eggText.Color = Color.White
-        eggText.BackgroundColor = Color(0, 0, 0, 0)
-        eggText.Anchor = { 0.5, 0 }
-        LocalEvent:Listen(LocalEvent.Name.Tick, function()
-            eggText.Forward = Player.Forward
-        end)
-
-        local eggCreditsIcon = Shape(Items.caillef.coin)
-        eggCreditsIcon.Palette[1].Color = Color.Red
-        eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
-            math.floor(Color.Red.B * 0.8))
-        eggCreditsIcon:SetParent(eggText)
-        eggCreditsIcon.Scale = 1.4
-        eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
-        eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
-    elseif obj.Name == "egg2" then
-        eggs[2] = obj
-        obj.Physics = PhysicsMode.Static
-        obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
-        obj.Scale = 0.9
-
-        local eggText = Text()
-        eggText.Text = "3"
-        eggText:SetParent(World)
-        eggText.FontSize = 3
-        eggText.Position = obj.Position + Number3(0, 20, 0)
-        eggText.Rotation.Y = math.pi * 0.25
-        eggText.Type = TextType.World
-        eggText.IsUnlit = true
-        eggText.Color = Color.White
-        eggText.BackgroundColor = Color(0, 0, 0, 0)
-        eggText.Anchor = { 0.5, 0 }
-        LocalEvent:Listen(LocalEvent.Name.Tick, function()
-            eggText.Forward = Player.Forward
-        end)
-
-        local eggCreditsIcon = Shape(Items.caillef.coin)
-        eggCreditsIcon.Palette[1].Color = Color.Red
-        eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
-            math.floor(Color.Red.B * 0.8))
-        eggCreditsIcon:SetParent(eggText)
-        eggCreditsIcon.Scale = 1.4
-        eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
-        eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
-    elseif obj.Name == "egg3" then
-        eggs[3] = obj
-        obj.Physics = PhysicsMode.Static
-        obj.Scale = 1.2
-        obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
-
-        local eggText = Text()
-        eggText.Text = "10"
-        eggText:SetParent(World)
-        eggText.FontSize = 3
-        eggText.Position = obj.Position + Number3(0, 20, 0)
-        eggText.Rotation.Y = math.pi * 0.25
-        eggText.Type = TextType.World
-        eggText.IsUnlit = true
-        eggText.Color = Color.White
-        eggText.BackgroundColor = Color(0, 0, 0, 0)
-        eggText.Anchor = { 0.5, 0 }
-        LocalEvent:Listen(LocalEvent.Name.Tick, function()
-            eggText.Forward = Player.Forward
-        end)
-
-        local eggCreditsIcon = Shape(Items.caillef.coin)
-        eggCreditsIcon.Palette[1].Color = Color.Red
-        eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
-            math.floor(Color.Red.B * 0.8))
-        eggCreditsIcon:SetParent(eggText)
-        eggCreditsIcon.Scale = 1.4
-        eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
-        eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
+    if obj.Name == "egg1" or obj.name == "egg2" or obj.Name == "egg3" then
+        obj:RemoveFromParent()
     end
+    -- if obj.Name == "egg1" then
+    --     eggs[1] = obj
+    --     obj.Physics = PhysicsMode.Static
+    --     obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
+
+    --     local eggText = Text()
+    --     eggText.Text = "1"
+    --     eggText:SetParent(World)
+    --     eggText.FontSize = 3
+    --     eggText.Position = obj.Position + Number3(0, 20, 0)
+    --     eggText.Rotation.Y = math.pi * 0.25
+    --     eggText.Type = TextType.World
+    --     eggText.IsUnlit = true
+    --     eggText.Color = Color.White
+    --     eggText.BackgroundColor = Color(0, 0, 0, 0)
+    --     eggText.Anchor = { 0.5, 0 }
+    --     LocalEvent:Listen(LocalEvent.Name.Tick, function()
+    --         eggText.Forward = Player.Forward
+    --     end)
+
+    --     local eggCreditsIcon = Shape(Items.caillef.coin)
+    --     eggCreditsIcon.Palette[1].Color = Color.Red
+    --     eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
+    --         math.floor(Color.Red.B * 0.8))
+    --     eggCreditsIcon:SetParent(eggText)
+    --     eggCreditsIcon.Scale = 1.4
+    --     eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
+    --     eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
+    -- elseif obj.Name == "egg2" then
+    --     eggs[2] = obj
+    --     obj.Physics = PhysicsMode.Static
+    --     obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
+    --     obj.Scale = 0.9
+
+    --     local eggText = Text()
+    --     eggText.Text = "3"
+    --     eggText:SetParent(World)
+    --     eggText.FontSize = 3
+    --     eggText.Position = obj.Position + Number3(0, 20, 0)
+    --     eggText.Rotation.Y = math.pi * 0.25
+    --     eggText.Type = TextType.World
+    --     eggText.IsUnlit = true
+    --     eggText.Color = Color.White
+    --     eggText.BackgroundColor = Color(0, 0, 0, 0)
+    --     eggText.Anchor = { 0.5, 0 }
+    --     LocalEvent:Listen(LocalEvent.Name.Tick, function()
+    --         eggText.Forward = Player.Forward
+    --     end)
+
+    --     local eggCreditsIcon = Shape(Items.caillef.coin)
+    --     eggCreditsIcon.Palette[1].Color = Color.Red
+    --     eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
+    --         math.floor(Color.Red.B * 0.8))
+    --     eggCreditsIcon:SetParent(eggText)
+    --     eggCreditsIcon.Scale = 1.4
+    --     eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
+    --     eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
+    -- elseif obj.Name == "egg3" then
+    --     eggs[3] = obj
+    --     obj.Physics = PhysicsMode.Static
+    --     obj.Scale = 1.2
+    --     obj.CollisionBox.Min = obj.CollisionBox.Min + Number3.Down * 20
+
+    --     local eggText = Text()
+    --     eggText.Text = "10"
+    --     eggText:SetParent(World)
+    --     eggText.FontSize = 3
+    --     eggText.Position = obj.Position + Number3(0, 20, 0)
+    --     eggText.Rotation.Y = math.pi * 0.25
+    --     eggText.Type = TextType.World
+    --     eggText.IsUnlit = true
+    --     eggText.Color = Color.White
+    --     eggText.BackgroundColor = Color(0, 0, 0, 0)
+    --     eggText.Anchor = { 0.5, 0 }
+    --     LocalEvent:Listen(LocalEvent.Name.Tick, function()
+    --         eggText.Forward = Player.Forward
+    --     end)
+
+    --     local eggCreditsIcon = Shape(Items.caillef.coin)
+    --     eggCreditsIcon.Palette[1].Color = Color.Red
+    --     eggCreditsIcon.Palette[2].Color = Color(math.floor(Color.Red.R * 0.8), math.floor(Color.Red.G * 0.8),
+    --         math.floor(Color.Red.B * 0.8))
+    --     eggCreditsIcon:SetParent(eggText)
+    --     eggCreditsIcon.Scale = 1.4
+    --     eggCreditsIcon.LocalRotation.Y = math.pi * 0.5
+    --     eggCreditsIcon.LocalPosition = { 0, 2.15, 1 }
+    -- end
 
     for name, _ in pairs(PET_NAMES) do
         if name == obj.Name then
-            pets[name] = obj
-            obj.IsHidden = true
-            require("hierarchyactions"):applyToDescendants(obj, { includeRoot = true }, function(o)
-                o.Physics = PhysicsMode.Disabled
-            end)
+            obj:RemoveFromParent()
+            -- pets[name] = obj
+            -- obj.IsHidden = true
+            -- require("hierarchyactions"):applyToDescendants(obj, { includeRoot = true }, function(o)
+            --     o.Physics = PhysicsMode.Disabled
+            -- end)
 
-            local shadow = Shape(obj, { includeChildren = true })
-            obj.shadow = shadow
-            shadow:SetParent(World)
-            shadow.Physics = PhysicsMode.Disabled
-            shadow.Position = obj.Position
-            shadow.Pivot = obj.Pivot
-            shadow.Scale = obj.Scale
-            shadow.Rotation = obj.Rotation
-            shadow.IsHidden = false
-            require("hierarchyactions"):applyToDescendants(shadow, { includeRoot = true }, function(o)
-                o.Physics = PhysicsMode.Disabled
-                for i = 1, #o.Palette do
-                    o.Palette[i].Color = Color.Black
-                    o.Palette[i].Color.A = 0.03
-                end
-            end)
+            --     local shadow = Shape(obj, { includeChildren = true })
+            --     obj.shadow = shadow
+            --     shadow:SetParent(World)
+            --     shadow.Physics = PhysicsMode.Disabled
+            --     shadow.Position = obj.Position
+            --     shadow.Pivot = obj.Pivot
+            --     shadow.Scale = obj.Scale
+            --     shadow.Rotation = obj.Rotation
+            --     shadow.IsHidden = false
+            --     require("hierarchyactions"):applyToDescendants(shadow, { includeRoot = true }, function(o)
+            --         o.Physics = PhysicsMode.Disabled
+            --         for i = 1, #o.Palette do
+            --             o.Palette[i].Color = Color.Black
+            --             o.Palette[i].Color.A = 0.03
+            --         end
+            --     end)
         end
     end
 end
 
+Client.OnPlayerJoin = function(player)
+    if player == Player then
+        updateInventory()
+        updatePlayerStats()
+        mapUpdate()
+    end
+end
+
 Client.OnStart = function()
-    blocksModule:start()
-    initLeaderboard()
-    initDojo()
-    initSellingArea()
-    initUpgradeAreas()
-
-    local ui = require("uikit")
-    nbSlotsLeftText = ui:createText("0/5", Color.White, "big")
-
-    inventory_module:setResources(resourcesByKey, resourcesById)
-    inventory_module:create("hotbar", {
-        width = 8,
-        height = 1,
-        alwaysVisible = true,
-        selector = false,
-        uiPos = function(node)
-            local padding = require("uitheme").current.padding
-            nbSlotsLeftText.pos = {
-                Screen.Width * 0.5 - node.Width * 0.5 - padding * 3 - nbSlotsLeftText.Width * 2,
-                padding + node.Height * 0.5 - nbSlotsLeftText.Height * 0.5,
-            }
-            return { Screen.Width * 0.5 - node.Width * 0.5, padding }
-        end,
-    })
-    initUI()
-    Player.pickaxe = Shape(Items.caillef.pickaxe)
     Map.Position = { 40, -Map.Height * 20, 40 }
-
     Camera:SetModeFree()
     Camera.Position = { 20 * 15, 300, 20 * 15 }
     Camera.Rotation.X = math.pi * 0.5
     Fog.On = false
+    require("ambience"):set(require("ambience").default)
 
-    initMenu(function()
-        require("ambience"):set(require("ambience").default)
-        initPlayer()
-        Player:SetParent(World)
-        Player.Position = Number3(250 + math.random(-25, 25), 5, 150 + math.random(-25, 25))
-    end)
+    require("multi")
+    blocksModule:start()
+    initSellingArea()
+    initUpgradeAreas()
+    initUI()
+    initPlayer()
+    -- initLeaderboard()
 end
 
-Client.OnChat = function(payload)
-    print("Set new username:", payload.message)
-    dojo.actions.set_username(payload.message)
-    return true -- consumed
-end
-
-local isOnGroundBox = Box()
-local pts = {}
-local minN3 = Number3.Zero
-local maxN3 = Number3.Zero
-local bMax
-local bMin
-function isOnGround(object)
-    if object.CollisionBox == nil then
-        return false
+function mapUpdate()
+    local store = KeyValueStore("blocks")
+    local keys = {}
+    for y = 0, 9 do
+        for x = 0, 9 do
+            table.insert(keys, string.format("x%d-y%d", x, y))
+        end
     end
+    table.insert(keys, function(success, results)
+        if not success then return end
+        for y = 0, 9 do
+            for x = 0, 9 do
+                local key = string.format("x%d-y%d", x, y)
+                local blocksInfo = results[key]
+                if not blocksInfo then
+                    print("can't get", x, y, "with key", key)
+                    return
+                end
+                for z, value in pairs(blocksInfo) do
+                    local blockInfo = value
+                    local blockType = blockInfo >> 7
+                    local blockHp = blockInfo & 127
+                    z = -z
+                    local b = blocksModule.blockShape:GetBlock(x, z, y)
+                    blocksModule:setBlockHP(b, blockHp, BLOCKS_MAX_HP[blockType], blockType)
+                    local blockColor = BLOCK_COLORS[blockType]
+                    if b and (blockHp == 0 or blockType == 0 or blockColor == nil) then
+                        b:Remove()
+                        if texturedBlocks[z] and texturedBlocks[z][y] and texturedBlocks[z][y][x] then
+                            texturedBlocks[z][y][x]:RemoveFromParent()
+                            texturedBlocks[z][y][x] = nil
+                        end
+                    elseif b and b.Color ~= blockColor then
+                        b:Replace(blockColor)
+                    elseif not b and blockHp > 0 then
+                        blocksModule.blockShape:AddBlock(blockColor, x, z, y)
+                    end
+                end
+            end
+        end
+    end)
+    store:Get(table.unpack(keys))
+end
 
-    bMax = object.CollisionBox.Max
-    bMin = object.CollisionBox.Min
-
-    -- TMP, waiting for object:BoxLocalToWorld
-    pts[1] = object:PositionLocalToWorld(bMin)
-    pts[2] = object:PositionLocalToWorld({ bMax.X, bMin.Y, bMin.Z })
-    pts[3] = object:PositionLocalToWorld({ bMin.X, bMax.Y, bMin.Z })
-    pts[4] = object:PositionLocalToWorld({ bMin.X, bMin.Y, bMax.Z })
-    pts[5] = object:PositionLocalToWorld({ bMax.X, bMax.Y, bMin.Z })
-    pts[6] = object:PositionLocalToWorld({ bMax.X, bMin.Y, bMax.Z })
-    pts[7] = object:PositionLocalToWorld({ bMin.X, bMax.Y, bMax.Z })
-    pts[8] = object:PositionLocalToWorld(bMax)
-
-    minN3:Set(pts[1])
-    minN3.X = math.min(minN3.X, pts[2].X, pts[3].X, pts[4].X, pts[5].X, pts[6].X, pts[7].X, pts[8].X)
-    minN3.Y = math.min(minN3.Y, pts[2].Y, pts[3].Y, pts[4].Y, pts[5].Y, pts[6].Y, pts[7].Y, pts[8].Y)
-    minN3.Z = math.min(minN3.Z, pts[2].Z, pts[3].Z, pts[4].Z, pts[5].Z, pts[6].Z, pts[7].Z, pts[8].Z)
-    maxN3:Set(pts[1])
-    maxN3.X = math.max(maxN3.X, pts[2].X, pts[3].X, pts[4].X, pts[5].X, pts[6].X, pts[7].X, pts[8].X)
-    maxN3.Y = math.max(maxN3.Y, pts[2].Y, pts[3].Y, pts[4].Y, pts[5].Y, pts[6].Y, pts[7].Y, pts[8].Y)
-    maxN3.Z = math.max(maxN3.Z, pts[2].Z, pts[3].Z, pts[4].Z, pts[5].Z, pts[6].Z, pts[7].Z, pts[8].Z)
-
-    isOnGroundBox.Min = minN3 + Number3(1, 0, 1)
-    isOnGroundBox.Max = maxN3 - Number3(1, 0, 1)
-
-    local impact = isOnGroundBox:Cast(Number3.Down, 5, object.CollidesWithGroups)
-    return (impact ~= nil and impact.FaceTouched == Face.Top)
+Client.DidReceiveEvent = function(e)
+    if e.action == "mapUpdate" then
+        mapUpdate()
+        return
+    end
+    if e.action == "inventoryUpdate" then
+        updateInventory(e.entry)
+    end
+    if e.action == "backpackUpdate" or e.action == "pickaxeUpdate" then
+        updatePlayerStats(e.entry)
+        updateInventory(e.entry)
+    end
+    if e.action == "blocksUpdate" then
+        local x, y = e.x, e.y
+        local blocksInfo = e.blocksInfo
+        for z, value in pairs(blocksInfo) do
+            local blockInfo = value
+            local blockType = blockInfo >> 7
+            local blockHp = blockInfo & 127
+            z = -z
+            local b = blocksModule.blockShape:GetBlock(x, z, y)
+            blocksModule:setBlockHP(b, blockHp, BLOCKS_MAX_HP[blockType], blockType)
+            local blockColor = BLOCK_COLORS[blockType]
+            if b and (blockHp == 0 or blockType == 0 or blockColor == nil) then
+                b:Remove()
+                if texturedBlocks[z] and texturedBlocks[z][y] and texturedBlocks[z][y][x] then
+                    texturedBlocks[z][y][x]:RemoveFromParent()
+                    texturedBlocks[z][y][x] = nil
+                end
+            elseif b and b.Color ~= blockColor then
+                b:Replace(blockColor)
+            elseif not b and blockHp > 0 then
+                blocksModule.blockShape:AddBlock(blockColor, x, z, y)
+            end
+        end
+    end
 end
 
 Client.Action1 = function()
@@ -1311,50 +1117,50 @@ Client.Action1 = function()
     end
 end
 
-function startEggAnimation(size)
-    local ui = require("uikit")
-    local egg = ui:createShape(Shape(Items.avatoon.egg), { spherized = true })
-    egg.parentDidResize = function()
-        egg.Size = Screen.Height * 0.25 * size
-        egg.pos = {
-            Screen.Width * 0.5 - egg.Width * 0.5,
-            Screen.Height * 0.5 - egg.Height * 0.5
-        }
-    end
-    local t = 0
-    local nextSwooshDelay = 0.003
-    local nextSwoosh = 0
-    sfx("whooshes_medium_1", { Spatialized = false, Volume = 0.4 })
-    local tickListener = LocalEvent:Listen(LocalEvent.Name.Tick, function(dt)
-        t = t + dt * 0.015
-        egg.pivot:RotateLocal(egg.pivot.Right, t * 0.5)
-        egg.pivot:RotateLocal(egg.pivot.Up, t)
-        egg.pivot:RotateLocal(egg.pivot.Forward, t * 2)
-        if nextSwoosh < t then
-            sfx("whooshes_medium_1", { Spatialized = false, Volume = 0.4 })
-            nextSwoosh = t + nextSwooshDelay
-            nextSwooshDelay = math.max(0.001, nextSwooshDelay * 0.85)
-        end
-    end)
-    egg:parentDidResize()
-    Timer(5, function()
-        tickListener:Remove()
-        egg:remove()
-        displayNewPetAcquired()
-    end)
-end
+-- function startEggAnimation(size)
+--     local ui = require("uikit")
+--     local egg = ui:createShape(Shape(Items.avatoon.egg), { spherized = true })
+--     egg.parentDidResize = function()
+--         egg.Size = Screen.Height * 0.25 * size
+--         egg.pos = {
+--             Screen.Width * 0.5 - egg.Width * 0.5,
+--             Screen.Height * 0.5 - egg.Height * 0.5
+--         }
+--     end
+--     local t = 0
+--     local nextSwooshDelay = 0.003
+--     local nextSwoosh = 0
+--     sfx("whooshes_medium_1", { Spatialized = false, Volume = 0.4 })
+--     local tickListener = LocalEvent:Listen(LocalEvent.Name.Tick, function(dt)
+--         t = t + dt * 0.015
+--         egg.pivot:RotateLocal(egg.pivot.Right, t * 0.5)
+--         egg.pivot:RotateLocal(egg.pivot.Up, t)
+--         egg.pivot:RotateLocal(egg.pivot.Forward, t * 2)
+--         if nextSwoosh < t then
+--             sfx("whooshes_medium_1", { Spatialized = false, Volume = 0.4 })
+--             nextSwoosh = t + nextSwooshDelay
+--             nextSwooshDelay = math.max(0.001, nextSwooshDelay * 0.85)
+--         end
+--     end)
+--     egg:parentDidResize()
+--     Timer(5, function()
+--         tickListener:Remove()
+--         egg:remove()
+--         displayNewPetAcquired()
+--     end)
+-- end
 
 Client.Action2 = function()
-    if selectedEgg then
-        dojo.actions.open_egg(tonumber(string.sub(selectedEgg.Name, 4, 4)) - 1, function(error)
-            if error == "TransactionExecutionError" then
-                showInfo("Not Enough Rebirth Credits")
-                return
-            end
-            startEggAnimation(1 + tonumber(string.sub(selectedEgg.Name, 4, 4)) - 1)
-        end)
-        return
-    end
+    -- if selectedEgg then
+    --     serverEvent.open_egg(tonumber(string.sub(selectedEgg.Name, 4, 4)) - 1, function(error)
+    --         if error == "TransactionExecutionError" then
+    --             showInfo("Not Enough Rebirth Credits")
+    --             return
+    --         end
+    --         startEggAnimation(1 + tonumber(string.sub(selectedEgg.Name, 4, 4)) - 1)
+    --     end)
+    --     return
+    -- end
     mining = true
 end
 
@@ -1387,21 +1193,16 @@ function handleBlocksImpact(impact)
             return
         end
         local block = impact.Block
-        Player:SwingRight()
         local impactPos = Camera.Position + Camera.Forward * impact.Distance
         emitter.Position = impactPos
         emitter:spawn(15)
         sfx(string.format("wood_impact_%d", math.random(3, 5)), { Spatialized = false, Volume = 0.6 })
 
-        local playerPos = Player.Position + Number3(1, 1, 1) * 1000000
-        tickSinceSync = 0
-        dojo.actions.hit_block(
+        Player:SwingRight()
+        serverEvent.hit_block(
             math.floor(block.Coords.X),
             math.floor(block.Coords.Y),
-            math.floor(block.Coords.Z),
-            math.floor(playerPos.X),
-            math.floor(playerPos.Y),
-            math.floor(playerPos.Z)
+            math.floor(block.Coords.Z)
         )
 
         local text = Text()
@@ -1451,23 +1252,40 @@ Client.Tick = function(dt)
         end
     end
 
-    local impact = Player:CastRay(nil, Player)
-    if impact.Object and impact.Object.Name and string.sub(impact.Object.Name, 1, 3) == "egg" and impact.Distance < 50 then
-        lookAtEgg(math.floor(tonumber(string.sub(impact.Object.Name, 4, 4))))
-    else
-        lookAtEgg()
-    end
+    -- local impact = Player:CastRay(nil, Player)
+    -- if impact.Object and impact.Object.Name and string.sub(impact.Object.Name, 1, 3) == "egg" and impact.Distance < 50 then
+    --     lookAtEgg(math.floor(tonumber(string.sub(impact.Object.Name, 4, 4))))
+    -- else
+    --     lookAtEgg()
+    -- end
 end
 
 initUI = function()
     local ui = require("uikit")
+
+    nbSlotsLeftText = ui:createText("0/5", Color.White, "big")
+    inventory_module:setResources(resourcesByKey, resourcesById)
+    inventory_module:create("hotbar", {
+        width = 8,
+        height = 1,
+        alwaysVisible = true,
+        selector = false,
+        uiPos = function(node)
+            local padding = require("uitheme").current.padding
+            nbSlotsLeftText.pos = {
+                Screen.Width * 0.5 - node.Width * 0.5 - padding * 3 - nbSlotsLeftText.Width * 2,
+                padding + node.Height * 0.5 - nbSlotsLeftText.Height * 0.5,
+            }
+            return { Screen.Width * 0.5 - node.Width * 0.5, padding }
+        end,
+    })
 
     coinIcon = ui:createShape(Shape(Items.caillef.coin), { spherized = true })
     LocalEvent:Listen(LocalEvent.Name.Tick, function(dt)
         coinIcon.pivot.Rotation.Y = coinIcon.pivot.Rotation.Y + dt
     end)
     coinIcon.Size = 80
-    coinText = ui:createText("0", Color.White, "big")
+    coinText = ui:createText("0", Color.White)
     coinText.object.FontSize = 30
     coinText.parentDidResize = function()
         coinIcon.pos = { 10, Screen.Height - Screen.SafeArea.Top - 10 - coinIcon.Height }
@@ -1484,7 +1302,7 @@ initUI = function()
         creditsIcon.pivot.Rotation.Y = creditsIcon.pivot.Rotation.Y + dt
     end)
     creditsIcon.Size = 80
-    creditsText = ui:createText("0", Color.White, "big")
+    creditsText = ui:createText("0", Color.White)
     creditsText.object.FontSize = 30
     creditsText.parentDidResize = function()
         creditsIcon.pos = { 10, coinIcon.pos.Y - 5 - creditsIcon.Height }
@@ -1510,6 +1328,8 @@ initUI = function()
 end
 
 initPlayer = function()
+    Player.pickaxe = Shape(Items.caillef.pickaxe)
+
     emitter = require("particles"):newEmitter({
         velocity = function()
             local v = Number3(0, 0, math.random(20, 30))
@@ -1539,518 +1359,299 @@ initPlayer = function()
         Player.EyeLidRight:RemoveFromParent()
         Player.EyeLidLeft:RemoveFromParent()
     end
+
+    Player:SetParent(World)
+    Player.Position = Number3(250 + math.random(-25, 25), 5, 150 + math.random(-25, 25))
 end
 
-initDojo = function()
-    worldInfo.onConnect = startGame
-    dojo:createToriiClient(worldInfo)
-end
-
-function updateBlocksColumn(key, rawColumn)
-    if not blocksModule.blockShape.GetBlock then
-        return
+Server.DidReceiveEvent = function(e)
+    if e.action == "hit_block" then
+        server_hit_block(e)
+    elseif e.action == "sell_all" then
+        server_sell_all(e)
+    elseif e.action == "upgrade_backpack" then
+        server_upgrade_backpack(e)
+    elseif e.action == "upgrade_pickaxe" then
+        server_upgrade_pickaxe(e)
+    elseif e.action == "rebirth" then
+        server_rebirth(e)
+    elseif e.action == "open_egg" then
+        server_open_egg(e)
+    elseif e.action == "free_daily_credits" then
+        server_free_daily_credits(e)
     end
-    local column = {
-        x = rawColumn.x.value,
-        y = rawColumn.y.value,
-        z_layer = rawColumn.z_layer.value,
-        data = {
-            raw = string.sub(rawColumn.data.value, 3, #rawColumn.data.value),
-            getBlock = function(self, index)
-                return tonumber(
-                    string.sub(
-                        self.raw,
-                        #self.raw - math.min(#self.raw - 1, (math.floor(index) * 3 + 2)),
-                        #self.raw - (math.floor(index) * 3)
-                    ),
-                    16
-                )
-            end,
-        },
-    }
+end
 
-    for k = 0, 9 do
-        local blockInfo = column.data:getBlock(k)
+local function sendInfo(player, message, data)
+    local response = Event()
+    response.action = "info"
+    response.message = message
+    if data then
+        for key, value in pairs(data) do
+            response[key] = value
+        end
+    end
+    response:SendTo(player)
+end
+
+local function sendInternalError(player)
+    sendInfo(player, "Internal error, please retry")
+end
+
+function server_add_block(player, blockType)
+    local store = KeyValueStore("players")
+    store:Get(player.UserID, function(success, results)
+        if not success then
+            sendInternalError(player)
+            return
+        end
+        local entry = results[player.UserID] or {}
+        local inventory = entry.inventory or {}
+        inventory[blockType] = inventory[blockType] and (inventory[blockType] + 1) or 1
+        entry.inventory = inventory
+        store:Set(player.UserID, entry, function(success, results)
+            local e = Event()
+            e.action = "inventoryUpdate"
+            e.entry = entry
+            e:SendTo(player)
+        end)
+    end)
+end
+
+function server_hit_block(e)
+    local store = KeyValueStore("blocks")
+    local x, y = e.position.X, e.position.Z
+    local z = math.floor(-e.position.Y)
+    local storeKey = string.format("x%d-y%d", x, y)
+    store:Get(storeKey, function(success, results)
+        if not success then
+            print("can't hit block")
+            return
+        end
+        local blocksInfo = results[string.format("x%d-y%d", x, y)]
+        local blockInfo = blocksInfo[z]
+        if not blockInfo then
+            print("can't retrieve block info")
+            return
+        end
         local blockType = blockInfo >> 7
         local blockHp = blockInfo & 127
-        local z = -(column.z_layer * 10 + k)
-        local b = blocksModule.blockShape:GetBlock(column.x, z, column.y)
-        blocksModule:setBlockHP(b, blockHp, BLOCKS_MAX_HP[blockType], blockType)
-        local blockColor = BLOCK_COLORS[blockType]
-        if b and (blockHp == 0 or blockType == 0 or blockColor == nil) then
-            b:Remove()
-            if texturedBlocks[z] and texturedBlocks[z][column.y] and texturedBlocks[z][column.y][column.x] then
-                texturedBlocks[z][column.y][column.x]:RemoveFromParent()
-                texturedBlocks[z][column.y][column.x] = nil
-            end
-        elseif b and b.Color ~= blockColor then
-            b:Replace(blockColor)
-        elseif not b and blockHp > 0 then
-            blocksModule.blockShape:AddBlock(blockColor, column.x, z, column.y)
+        local newBlockHp = blockHp - server_players_hit_power[e.Sender.UserID]
+        local newBlock = 0
+        newBlock = newBlockHp <= 0 and 0 or math.floor((blockType << 7) + newBlockHp)
+        if newBlockHp <= 0 then
+            server_add_block(e.Sender, blockType)
         end
-
-        -- if starknet block
-        if blockType == 8 and blockHp > 0 and not (texturedBlocks[z] and texturedBlocks[z][column.y] and texturedBlocks[z][column.y][column.x]) and b then
-            local object = Object()
-            object.Scale = 1.001
-            object:SetParent(World)
-            object.Position = blocksModule.blockShape.Position +
-                (b.Coords + Number3(0.5, -0.5, 0.5)) * blocksModule.blockShape.Scale
-            texturedBlocks[z] = texturedBlocks[z] or {}
-            texturedBlocks[z][column.y] = texturedBlocks[z][column.y] or {}
-            texturedBlocks[z][column.y][column.x] = object
-            HTTP:Get("https://api.voxdream.art/starknet.png", function(res)
-                local imagePng = res.Body
-                local function createFace(rotationX, rotationY, rotationZ, posX, posY, posZ)
-                    local quad = Quad()
-                    quad.Image = imagePng
-                    quad.Width = 20
-                    quad.Height = 20
-                    quad.Anchor = { 0.5, 0.5 }
-                    quad.LocalPosition = { posX, posY, posZ }
-                    quad.IsDoubleSided = true
-                    quad:SetParent(object)
-                    quad.Rotation = { rotationX, rotationY, rotationZ }
-                    return quad
-                end
-                createFace(0, 0, 0, 0, 0, 10)
-                createFace(0, math.pi, 0, 0, 0, -10)
-                createFace(0, math.pi * 0.5, 0, -10, 0, 0)
-                createFace(0, math.pi * -0.5, 0, 10, 0, 0)
-                createFace(math.pi * 0.5, 0, 0, 0, 10, 0)
-                createFace(math.pi * -0.5, 0, 0, 0, -10, 0)
-            end)
-        end
-    end
-end
-
-local onEntityUpdateCallbacks = {
-    -- all = function(key, entity)
-    -- 	print("Any update", key)
-    -- end,
-    ["diamond_pit-BlocksColumn"] = updateBlocksColumn,
-    ["diamond_pit-PlayerInventory"] = updateInventory,
-    ["diamond_pit-DailyLeaderboardEntry"] = updateLeaderboard,
-    ["diamond_pit-PlayerStats"] = updatePlayerStats,
-    ["diamond_pit-PlayerPosition"] = updatePlayerPosition,
-    ["diamond_pit-PetInventory"] = updatePetInventory,
-}
-
-function startGame(toriiClient)
-    textInputUsername.Text = string.sub(dojo.burnerAccount.Address, 1, 8)
-
-    -- sync previous entities
-    dojo:syncEntities(onEntityUpdateCallbacks)
-
-    -- add callbacks when an entity is updated
-    dojo:setOnEntityUpdateCallbacks(onEntityUpdateCallbacks)
-
-    Timer(1, true, function()
-        tickSinceSync = tickSinceSync + 1
-        if tickSinceSync >= 5 then
-            local playerPos = Player.Position + Number3(1, 1, 1) * 1000000
-            dojo.actions.sync_position(math.floor(playerPos.X), math.floor(playerPos.Y), math.floor(playerPos.Z))
-            tickSinceSync = 0
-        end
+        blocksInfo[z] = newBlock
+        store:Set(storeKey, blocksInfo, function(success)
+            local e2 = Event()
+            e2.action = "blocksUpdate"
+            e2.x = x
+            e2.y = y
+            e2.blocksInfo = blocksInfo
+            e2:SendTo(Players)
+        end)
     end)
 end
 
--- dojo module
+-- Function to calculate coins to add
+function calculate_coins_to_add(inventory)
+    local coins_to_add = 0
 
-dojo = {}
-
-dojo.createBurner = function(self, config, cb)
-    self.toriiClient:CreateBurner(
-        config.playerAddress,
-        config.playerSigningKey,
-        function(success, burnerAccount)
-            if not success then
-                error("Can't create burner")
-                return
-            end
-            dojo.burnerAccount = burnerAccount
-            cb()
+    for resourceIndex = 1, #PRICE_PER_BLOCK do
+        if inventory[resourceIndex] then
+            coins_to_add = coins_to_add + (inventory[resourceIndex] * PRICE_PER_BLOCK[resourceIndex])
         end
-    )
+    end
+
+    return coins_to_add
 end
 
-dojo.createToriiClient = function(self, config)
-    dojo.config = config
-    local err
-    dojo.toriiClient = Dojo:CreateToriiClient(config.torii_url, config.rpc_url, config.world)
-    dojo.toriiClient.OnConnect = function(success)
+function server_sell_all(e)
+    local player = e.Sender
+    local store = KeyValueStore("players")
+    store:Get(player.UserID, function(success, results)
         if not success then
-            print("Connection failed")
+            sendInternalError(player)
             return
         end
-        local json = dojo.toriiClient:GetBurners()
-        local burners = json.burners
-        if not burners then
-            self:createBurner(config, function()
-                config.onConnect(dojo.toriiClient)
-            end)
-        else
-            local lastBurner = burners[1]
-            self.toriiClient:CreateAccount(lastBurner.publicKey, lastBurner.privateKey, function(success, burnerAccount)
-                if not success then
-                    self:createBurner(config, function()
-                        config.onConnect(dojo.toriiClient)
-                    end)
-                    -- error("Can't create burner")
-                    return
-                end
-                dojo.burnerAccount = burnerAccount
-
-                -- test if burner valid (not valid if new katana)
-                local playerPos = Player.Position + Number3(1, 1, 1) * 1000000
-                dojo.actions.sync_position(math.floor(playerPos.X), math.floor(playerPos.Y), math.floor(playerPos.Z),
-                    function(error)
-                        if error == "ContractNotFound" then
-                            print("new katana deployed! creating a new burner")
-                            self:createBurner(config, function()
-                                config.onConnect(dojo.toriiClient)
-                            end)
-                        else
-                            print("existing katana")
-                            config.onConnect(dojo.toriiClient)
-                        end
-                    end)
-            end)
-        end
-    end
-    dojo.toriiClient:Connect()
-end
-
-dojo.getModel = function(_, entity, modelName)
-    for key, model in pairs(entity) do
-        if key == modelName then
-            return model
-        end
-    end
-end
-
-dojo.setOnEntityUpdateCallbacks = function(self, callbacks)
-    local clauseJsonStr = '[{ "Keys": { "keys": [], "models": [], "pattern_matching": "VariableLen" } }]'
-    self.toriiClient:OnEntityUpdate(clauseJsonStr, function(entityKey, entity)
-        for modelName, callback in pairs(callbacks) do
-            local model = self:getModel(entity, modelName)
-            if modelName == "all" or model then
-                callback(entityKey, model, entity)
-            end
-        end
+        local entry = results[player.UserID] or {}
+        local inventory = entry.inventory or {}
+        local coinsToAdd = calculate_coins_to_add(inventory)
+        entry.coins = entry.coins and entry.coins + coinsToAdd or coinsToAdd
+        inventory = {}
+        entry.inventory = inventory
+        store:Set(player.UserID, entry, function(success, results)
+            local e2 = Event()
+            e2.action = "inventoryUpdate"
+            e2.entry = entry
+            e2:SendTo(player)
+        end)
     end)
 end
 
-dojo.syncEntities = function(self, callbacks)
-    self.toriiClient:Entities('{ "limit": 1000, "offset": 0 }', function(entities)
-        if not entities then
+function server_upgrade_backpack(e)
+    local store = KeyValueStore("players")
+    store:Get(e.Sender.UserID, function(success, results)
+        if not success then
+            sendInternalError(e.Sender)
             return
         end
-        for entityKey, entity in pairs(entities) do
-            for modelName, callback in pairs(callbacks) do
-                local model = self:getModel(entity, modelName)
-                if model then
-                    callback(entityKey, model, entity)
-                end
-            end
+        local entry = results[e.Sender.UserID] or {}
+
+        local nextUpdateLevel = (entry.backpack_level or 0) + 1
+        if entry.coins < BACKPACK_UPGRADE_PRICES[nextUpdateLevel] then
+            sendInfo(e.Sender, "Not enough coins")
+            return
         end
+        entry.coins = entry.coins - BACKPACK_UPGRADE_PRICES[nextUpdateLevel]
+        entry.backpack_level = nextUpdateLevel
+
+        store:Set(e.Sender.UserID, entry, function(success)
+            if success then
+                sendInfo(e.Sender, "Backpack upgraded", { action = "upgrade_backpack", level = entry.backpack_level })
+            else
+                sendInternalError(e.Sender)
+            end
+            local e2 = Event()
+            e2.action = "backpackUpdate"
+            e2.entry = entry
+            e2:SendTo(e.Sender)
+        end)
     end)
 end
 
-function bytes_to_hex(data)
-    local hex = "0x"
-    for i = 1, data.Length do
-        hex = hex .. string.format("%02x", data[i])
+function server_upgrade_pickaxe(e)
+    local store = KeyValueStore("players")
+    store:Get(e.Sender.UserID, function(success, results)
+        if not success then
+            sendInternalError(e.Sender)
+            return
+        end
+        local entry = results[e.Sender.UserID] or {}
+
+        local nextUpdateLevel = (entry.pickaxe_level or 0) + 1
+        if entry.coins < PICKAXE_UPGRADE_PRICES[nextUpdateLevel] then
+            sendInfo(e.Sender, "Not enough coins")
+            return
+        end
+        entry.coins = entry.coins - PICKAXE_UPGRADE_PRICES[nextUpdateLevel]
+        entry.pickaxe_level = nextUpdateLevel
+
+        server_players_hit_power[e.Sender.UserID] = PICKAXE_STRENGTHS[nextUpdateLevel]
+
+        store:Set(e.Sender.UserID, entry, function(success)
+            if success then
+                sendInfo(e.Sender, "Pickaxe upgraded", { action = "upgrade_pickaxe", level = entry.pickaxe_level })
+            else
+                sendInternalError(e.Sender)
+            end
+            local e2 = Event()
+            e2.action = "pickaxeUpdate"
+            e2.entry = entry
+            e2:SendTo(e.Sender)
+        end)
+    end)
+end
+
+function server_rebirth(e)
+    -- local store = KeyValueStore("players")
+    -- store:Get(e.Sender.UserID, function(success, results)
+    --     if not success then
+    --         sendInternalError(e.Sender)
+    --         return
+    --     end
+    --     local entry = results[e.Sender.UserID] or {}
+
+    --     if entry.coins < 3000 then
+    --         sendInfo(e.Sender, "Not enough coins")
+    --         return
+    --     end
+    --     entry.rebirth = (entry.rebirth or 0) + 1
+
+    --     store:Set(e.Sender.UserID, entry, function(success)
+    --         if success then
+    --             sendInfo(e.Sender, "Rebirth successful", { action = "rebirth", level = entry.rebirth })
+    --         else
+    --             sendInternalError(e.Sender)
+    --         end
+    --     end)
+    -- end)
+end
+
+function server_open_egg(e)
+end
+
+function server_free_daily_credits(e)
+end
+
+local TWO_POW_7 = 128
+
+function new_block(block_type)
+    local block_value = block_type * TWO_POW_7
+    return block_value + (BLOCKS_MAX_HP[block_type] or 0)
+end
+
+function get_block_info(block)
+    local block_type = math.floor(block / TWO_POW_7)
+    local block_hp = block % TWO_POW_7
+    return block_type, block_hp
+end
+
+function server_regenerate()
+    local store = KeyValueStore("blocks")
+    local listChanges = {}
+    for y = 0, 9 do
+        for x = 0, 9 do
+            local blocksInfo = {}
+            for z = 0, 49 do
+                blocksInfo[z] = 132
+            end
+            local blocks = {
+                new_block(2), new_block(3), new_block(5), new_block(6), new_block(7)
+            }
+            for zLayer = 0, 4 do
+                local rnd_position = math.floor(math.random() * 10)
+                blocksInfo[zLayer * 10 + rnd_position] = blocks[zLayer + 1]
+            end
+            table.insert(listChanges, string.format("x%d-y%d", x, y))
+            table.insert(listChanges, blocksInfo)
+        end
     end
-    return hex
-end
 
-function hex_to_string(hex)
-    hex = hex:gsub("^0x", "") -- Remove "0x" prefix if present
-    return (hex:gsub("..", function(cc)
-        return string.char(tonumber(cc, 16))
-    end))
-end
-
-function string_to_hex(input)
-    -- Ensure the input is no longer than 11 characters
-    input = string.sub(input, 1, 11)
-    local result = "0x"
-    for i = 1, #input do
-        result = result .. string.format("%02X", string.byte(input:sub(i, i)))
+    local callback = function(success)
+        local e = Event()
+        e.action = "mapUpdate"
+        e:SendTo(Players)
     end
-    return result
+    table.insert(listChanges, callback)
+    store:Set(table.unpack(listChanges))
 end
 
-function number_to_hexstr(number)
-    return "0x" .. string.format("%x", number)
+Server.OnPlayerJoin = function(player)
+    local store = KeyValueStore("players")
+    store:Get(player.UserID, function(success, results)
+        local entry = results[player.UserID] or {}
+        server_players_hit_power[player.UserID] = PICKAXE_STRENGTHS[entry.pickaxe_level] or 1
+    end)
 end
 
--- generated contracts
-dojo.actions = {
-    hit_block = function(x, y, z, px, py, pz, cb)
-        if not dojo.toriiClient then
-            return
-        end
-        -- z is down in Dojo, y is down on Cubzh
-        local calldatastr = string.format(
-            '["%s","%s","%s","%s","%s","%s"]',
-            number_to_hexstr(x),
-            number_to_hexstr(z),
-            number_to_hexstr(-y),
-            number_to_hexstr(px),
-            number_to_hexstr(py),
-            number_to_hexstr(pz)
-        )
-        if VERBOSE then
-            print("Calling hit_block", calldatastr)
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "hit_block", calldatastr, cb or function(error)
-            if not error then return end
-            print("ERROR", error)
-        end)
-    end,
-    sync_position = function(px, py, pz, cb)
-        if not dojo.toriiClient then
-            return
-        end
-        -- z is down in Dojo, y is down on Cubzh
-        local calldatastr =
-            string.format('["%s","%s","%s"]', number_to_hexstr(px), number_to_hexstr(py), number_to_hexstr(pz))
-        if VERBOSE then
-            print("Calling sync_position", calldatastr)
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "sync_position", calldatastr,
-            cb or function(error)
-                if not error then return end
-                print("ERROR", error)
-            end)
-    end,
-    sell_all = function(cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling sell_all")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "sell_all", "[]", cb or function(error)
-            if not error then return end
-            print("ERROR", error)
-        end)
-    end,
-    upgrade_backpack = function(cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling upgrade_backpack")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "upgrade_backpack", "[]", cb or function(error)
-            if not error then return end
-            print("ERROR", error)
-        end)
-    end,
-    upgrade_pickaxe = function(cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling upgrade_pickaxe")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "upgrade_pickaxe", "[]", cb or function(error)
-            if not error then return end
-            print("ERROR", error)
-        end)
-    end,
-    set_username = function(username, cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling set_username")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "set_username",
-            string.format("[\"%s\"]", string_to_hex(username)), cb or function(error)
-                if not error then return end
-                print("ERROR", error)
-            end)
-    end,
-    rebirth = function(nb, cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling rebirth")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "rebirth",
-            string.format("[\"%s\"]", number_to_hexstr(nb)), cb or function(error)
-                if not error then return end
-                print("ERROR", error)
-            end)
-    end,
-    open_egg = function(egg_type, cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling open_egg")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "open_egg",
-            string.format("[\"%s\"]", number_to_hexstr(egg_type)), cb or function(error)
-                if not error then return end
-                print("ERROR", error)
-            end)
-    end,
-    free_daily_credits = function(cb)
-        if not dojo.toriiClient then
-            return
-        end
-        if VERBOSE then
-            print("Calling free_daily_credits")
-        end
-        dojo.toriiClient:Execute(dojo.burnerAccount, dojo.config.actions, "free_daily_credits", "[]",
-            cb or function(error)
-                if not error then return end
-                print("ERROR", error)
-            end)
+Server.Tick = function()
+    local currentTime = Time.Unix()
+    if server_next_generate == 0 then
+        local minutesSinceHour = math.floor((currentTime % 3600) / 60)
+        local nextFiveMinutes = math.ceil(minutesSinceHour / 5) * 5
+        local secondsUntilNextFiveMinutes = (nextFiveMinutes - minutesSinceHour) * 60 - (currentTime % 60)
+        server_next_generate = currentTime + secondsUntilNextFiveMinutes
     end
-}
 
--- -- Module to create floating island
-
--- --[[
--- USAGE
--- Modules = {
---     floating_island_generator = "github.com/caillef/cubzh-library/floating_island_generator:82d22a5"
--- }
-
--- Client.OnStart = function()
---     floating_island_generator:generateIslands({
--- 		nbIslands = 20, -- number of islands
--- 		minSize = 4, -- min size of island
--- 		maxSize = 7, -- max size of island
--- 		safearea = 200, -- min dist of islands from 0,0,0
--- 		dist = 750, -- max dist of islands
--- 	})
--- end
--- --]]
-
--- floating_island_generator = {}
--- local cachedTree
-
--- local COLORS = {
---     GRASS = Color(19, 133, 16),
---     DIRT = Color(107, 84, 40),
---     STONE = Color.Grey,
--- }
-
--- local function islandHeight(x, z, radius)
---     local distance = math.sqrt(x * x + z * z)
---     local normalizedDistance = distance / radius
---     local maxy = -((1 + radius) * 2 - (normalizedDistance ^ 4) * distance)
---     return maxy
--- end
-
--- local function onReady(callback)
---     Object:Load("knosvoxel.oak_tree", function(obj)
---         cachedTree = obj
---     end)
--- end
-
--- local cachedIslands = {}
--- local function create(radius)
---     if cachedIslands[radius] then
---         return Shape(cachedIslands[radius], { includeChildren = true })
---     end
---     local shape = MutableShape()
---     cachedIslands[radius] = shape
---     shape.Pivot = { 0.5, 0.5, 0.5 }
---     for z = -radius, radius do
---         for x = -radius, radius do
---             local maxy = islandHeight(x, z, radius)
---             shape:AddBlock(COLORS.DIRT, x, -2, z)
---             shape:AddBlock(COLORS.GRASS, x, -1, z)
---             shape:AddBlock(COLORS.GRASS, x, 0, z)
---             if maxy <= -3 then
---                 shape:AddBlock(COLORS.DIRT, x, -3, z)
---             end
---             for y = maxy, -3 do
---                 shape:AddBlock(COLORS.STONE, x, y, z)
---             end
---         end
---     end
-
---     local xShift = math.random(-radius, radius)
---     local zShift = math.random(-radius, radius)
---     for z = -radius, radius do
---         for x = -radius, radius do
---             local maxy = islandHeight(x, z, radius) - 2
---             shape:AddBlock(COLORS.DIRT, x + xShift, -2 + 2, z + zShift)
---             shape:AddBlock(COLORS.GRASS, x + xShift, -1 + 2, z + zShift)
---             shape:AddBlock(COLORS.GRASS, x + xShift, 0 + 2, z + zShift)
---             if maxy <= -3 + 2 then
---                 shape:AddBlock(COLORS.DIRT, x + xShift, -3 + 2, z + zShift)
---             end
---             for y = maxy, -3 + 2 do
---                 shape:AddBlock(COLORS.STONE, x + xShift, y, z + zShift)
---             end
---         end
---     end
-
---     for _ = 1, math.random(1, 2) do
---         local obj = Shape(cachedTree, { includeChildren = true })
---         obj.Position = { 0, 0, 0 }
---         local box = Box()
---         box:Fit(obj, true)
---         obj.Pivot = Number3(obj.Width / 2, box.Min.Y + obj.Pivot.Y + 4, obj.Depth / 2)
---         obj:SetParent(shape)
---         require("hierarchyactions"):applyToDescendants(obj, { includeRoot = true }, function(o)
---             o.Physics = PhysicsMode.Disabled
---         end)
---         local coords = Number3(math.random(-radius + 1, radius - 1), 0, math.random(-radius + 1, radius - 1))
---         while shape:GetBlock(coords) do
---             coords.Y = coords.Y + 1
---         end
---         obj.Scale = math.random(70, 150) / 1000
---         obj.Rotation.Y = math.random(1, 4) * math.pi * 0.25
---         obj.LocalPosition = coords
---     end
-
---     return shape
--- end
-
--- floating_island_generator.generateIslands = function(_, config)
---     config = config or {}
---     local nbIslands = config.nbIslands or 20
---     local minSize = config.minSize or 4
---     local maxSize = config.maxSize or 7
---     local dist = config.dist or 750
---     local safearea = config.safearea or 200
---     onReady(function()
---         for i = 1, nbIslands do
---             local island = create(math.random(minSize, maxSize))
---             island:SetParent(World)
---             island.Scale = 5
---             island.Physics = PhysicsMode.Disabled
---             local x = math.random(-dist, dist)
---             local z = math.random(-dist, dist)
---             while (x >= -safearea and x <= safearea) and (z >= -safearea and z <= safearea) do
---                 x = math.random(-dist, dist)
---                 z = math.random(-dist, dist)
---             end
---             island.Position = {
---                 x + 250,
---                 150 + math.random(300) - 150,
---                 z + 250,
---             }
---             local t = x + z
---             LocalEvent:Listen(LocalEvent.Name.Tick, function(dt)
---                 t = t + dt
---                 island.Position.Y = island.Position.Y + math.sin(t) * 0.02
---             end)
---         end
---     end)
--- end
+    if currentTime >= server_next_generate then
+        if server_next_generate > 0 then
+            server_regenerate()
+        end
+        server_next_generate = currentTime + 300
+    end
+end
 
 -- Inventory
 
@@ -2801,3 +2402,176 @@ LocalEvent:Listen("InvToggle", function(data)
         LocalEvent:Send("InvShow", data)
     end
 end)
+
+
+blocksModule = {
+    chips = {}
+}
+
+blocksModule.addChips = function(self, block, color)
+    if self.chips[block.Coords.Z] and
+        self.chips[block.Coords.Z][block.Coords.Y] and
+        self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] then
+        return
+    end
+    local blockType
+    for k, v in pairs(BLOCK_COLORS) do
+        if v == color then
+            blockType = k
+            break
+        end
+    end
+
+    if not NUGGETS_COLOR[blockType] then return end
+
+    if not self.cachedChips then
+        self.cachedChips = {}
+    end
+
+    if not self.cachedChips[blockType] then
+        local chips = MutableShape()
+
+        local function randomFacePosition()
+            return math.random(-4, 4), math.random(-4, 4)
+        end
+
+        -- Front face (3 chips)
+        for i = 1, 10 do
+            local x, y = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], x, y, -5)
+        end
+
+        -- Back face (3 chips)
+        for i = 1, 10 do
+            local x, y = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], x, y, 5)
+        end
+
+        -- Left face (3 chips)
+        for i = 1, 10 do
+            local y, z = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], -5, y, z)
+        end
+
+        -- Right face (3 chips)
+        for i = 1, 10 do
+            local y, z = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], 5, y, z)
+        end
+
+        -- Top face (3 chips)
+        for i = 1, 10 do
+            local x, z = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], x, 5, z)
+        end
+
+        -- Bottom face (3 chips)
+        for i = 1, 10 do
+            local x, z = randomFacePosition()
+            chips:AddBlock(NUGGETS_COLOR[blockType], x, -5, z)
+        end
+
+        self.cachedChips[blockType] = chips
+    end
+
+    local chips = Shape(self.cachedChips[blockType])
+    chips:SetParent(World)
+    chips.Shadow = true
+    chips.Position = block.Position + Number3(10, 10, 10)
+    chips.Physics = PhysicsMode.Disabled
+    chips.Pivot = Number3(0.5, 0.5, 0.5)
+    chips.Scale = 1.75
+
+    self.chips[block.Coords.Z] = self.chips[block.Coords.Z] or {}
+    self.chips[block.Coords.Z][block.Coords.Y] = self.chips[block.Coords.Z][block.Coords.Y] or {}
+    self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] = chips
+end
+
+blocksModule.setBlockHP = function(self, block, hp, maxHP, blockType)
+    if not block then return end
+    if not self.chips[block.Coords.Z] or not self.chips[block.Coords.Z][block.Coords.Y] or not self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] then
+        if maxHP and hp < maxHP then
+            self:addChips(block, BLOCK_COLORS[blockType])
+        else
+            return
+        end
+    end
+
+    local chips = self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X]
+    if hp <= 0 then
+        chips:RemoveFromParent()
+        self.chips[block.Coords.Z][block.Coords.Y][block.Coords.X] = nil
+        return
+    end
+
+    if maxHP then
+        local percentage = 1 - (hp / maxHP)
+        chips.Scale = 1.75 + percentage * 0.3
+    end
+end
+
+blocksModule.start = function(self)
+    self.blockShape = MutableShape()
+    self.blockShape.Name = "Blocks"
+    self.blockShape.Physics = PhysicsMode.StaticPerBlock
+    self.blockShape:SetParent(World)
+    self.CollisionGroups = Map.CollisionGroups
+    self.CollidesWithGroups = Map.CollidesWithGroups
+    self.blockShape.Position = { 200, 0, 200 }
+    self.blockShape.Scale = 20
+    self.blockShape.Friction = { top = 0.2, other = 0 }
+    self.blockShape.Pivot = { 0, 1, 0 }
+    self.blockShape.Shadow = true
+    -- self.blockShape.PrivateDrawMode = 8
+    for z = 0, 49 do
+        for j = 0, 9 do
+            for i = 0, 9 do
+                self.blockShape:AddBlock(BLOCK_COLORS[1], i, -z, j)
+            end
+        end
+    end
+end
+
+------------------
+-- IS ON GROUND --
+------------------
+
+local isOnGroundBox = Box()
+local pts = {}
+local minN3 = Number3.Zero
+local maxN3 = Number3.Zero
+local bMax
+local bMin
+function isOnGround(object)
+    if object.CollisionBox == nil then
+        return false
+    end
+
+    bMax = object.CollisionBox.Max
+    bMin = object.CollisionBox.Min
+
+    -- TMP, waiting for object:BoxLocalToWorld
+    pts[1] = object:PositionLocalToWorld(bMin)
+    pts[2] = object:PositionLocalToWorld({ bMax.X, bMin.Y, bMin.Z })
+    pts[3] = object:PositionLocalToWorld({ bMin.X, bMax.Y, bMin.Z })
+    pts[4] = object:PositionLocalToWorld({ bMin.X, bMin.Y, bMax.Z })
+    pts[5] = object:PositionLocalToWorld({ bMax.X, bMax.Y, bMin.Z })
+    pts[6] = object:PositionLocalToWorld({ bMax.X, bMin.Y, bMax.Z })
+    pts[7] = object:PositionLocalToWorld({ bMin.X, bMax.Y, bMax.Z })
+    pts[8] = object:PositionLocalToWorld(bMax)
+
+    minN3:Set(pts[1])
+    minN3.X = math.min(minN3.X, pts[2].X, pts[3].X, pts[4].X, pts[5].X, pts[6].X, pts[7].X, pts[8].X)
+    minN3.Y = math.min(minN3.Y, pts[2].Y, pts[3].Y, pts[4].Y, pts[5].Y, pts[6].Y, pts[7].Y, pts[8].Y)
+    minN3.Z = math.min(minN3.Z, pts[2].Z, pts[3].Z, pts[4].Z, pts[5].Z, pts[6].Z, pts[7].Z, pts[8].Z)
+    maxN3:Set(pts[1])
+    maxN3.X = math.max(maxN3.X, pts[2].X, pts[3].X, pts[4].X, pts[5].X, pts[6].X, pts[7].X, pts[8].X)
+    maxN3.Y = math.max(maxN3.Y, pts[2].Y, pts[3].Y, pts[4].Y, pts[5].Y, pts[6].Y, pts[7].Y, pts[8].Y)
+    maxN3.Z = math.max(maxN3.Z, pts[2].Z, pts[3].Z, pts[4].Z, pts[5].Z, pts[6].Z, pts[7].Z, pts[8].Z)
+
+    isOnGroundBox.Min = minN3 + Number3(1, 0, 1)
+    isOnGroundBox.Max = maxN3 - Number3(1, 0, 1)
+
+    local impact = isOnGroundBox:Cast(Number3.Down, 5, object.CollidesWithGroups)
+    return (impact ~= nil and impact.FaceTouched == Face.Top)
+end
